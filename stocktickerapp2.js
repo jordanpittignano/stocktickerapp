@@ -1,108 +1,116 @@
-// Import necessary modules
-const express = require('express');
-const { MongoClient } = require('mongodb');
-const path = require('path');
-const dotenv = require('dotenv');
+import express from 'express';
+import { MongoClient } from 'mongodb';
+import dotenv from 'dotenv';
 
-// Load environment variables from a .env file (for local development)
 dotenv.config();
 
-// Initialize the app
+// set up everything
 const app = express();
-const port = process.env.PORT || 3000; // Heroku assigns a dynamic port
-
-// MongoDB Atlas connection URI (from environment variable)
+const port = process.env.PORT || 3000;
 const uri = process.env.MONGO_URI;
-
-// MongoDB client initialization
 const client = new MongoClient(uri);
-
 const dbName = 'Stock';
 const collectionName = 'PublicCompanies';
 
-// Middleware to parse form data (application/x-www-form-urlencoded)
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 
-// Connect to MongoDB
+
+// connect to Mongo
 let db, collection;
 client.connect()
   .then(() => {
-    db = client.db(dbName);
+    db = client.db(dbName);  // Use db() instead of database()
     collection = db.collection(collectionName);
     console.log('MongoDB connected');
   })
   .catch((err) => console.error('Error connecting to MongoDB:', err));
 
-// Home Route (View 1) - The form to search by company name or ticker symbol
 app.get('/', (req, res) => {
-  res.send(`
-    <html>
-      <head>
-        <title>Stock Search</title>
-      </head>
-      <body>
-        <h1>Search for a Stock</h1>
-        <form method="GET" action="/process">
-          <label for="searchQuery">Enter Company Name or Ticker Symbol:</label>
-          <input type="text" id="searchQuery" name="searchQuery" required>
-
-          <br><br>
-
-          <label for="searchTicker">Search by Ticker Symbol:</label>
-          <input type="radio" id="searchTicker" name="searchType" value="ticker" required>
-
-          <label for="searchCompany">Search by Company Name:</label>
-          <input type="radio" id="searchCompany" name="searchType" value="company">
-
-          <br><br>
-
-          <button type="submit">Search</button>
-        </form>
-      </body>
-    </html>
+    // html below with search bar, radio buttons, and submit button
+    res.send(`
+        <html>
+            <head>
+                    <title>Stock Ticker</title>
+            </head>
+            <body>
+                    <h1 style="font-family: 'Lora', serif; font-size: 40px">Stock Ticker App 2</h1>
+                    <form method="GET" action="/process">
+                        <label for="searched">Enter a company name or ticker here:</label>
+                        <input type="text" id="searched" name="searched" required>
+                        <br><br>
+                        <label for="searchTicker">Select if you inputted a ticker</label>
+                        <input type="radio" id="searchTicker" name="searchType" value="ticker" required>
+                        <br>
+                        <br>
+                        <label for="searchCompany">Select if you inputted a company name</label>
+                        <input type="radio" id="searchCompany" name="searchType" value="company">
+                        <br>
+                        <br>
+                        <br>
+                        <button type="submit">Submit</button>
+                    </form>
+            </body>
+        </html>
   `);
 });
 
-// Process Route (View 2) - Handles the form submission, queries the database, and shows results in the console
+// process
 app.get('/process', async (req, res) => {
-  const { searchQuery, searchType } = req.query;
+    const { searched, searchType } = req.query;
 
-  if (!searchQuery) {
-    return res.send("No search query provided.");
-  }
-
-  let searchCriteria;
-
-  // Determine whether we're searching by company name or ticker symbol
-  if (searchType === 'ticker') {
-    searchCriteria = { ticker: searchQuery };
-  } else if (searchType === 'company') {
-    searchCriteria = { company: { $regex: searchQuery, $options: 'i' } }; // Case-insensitive search
-  }
-
-  try {
-    // Query MongoDB
-    const results = await collection.find(searchCriteria).toArray();
-
-    if (results.length > 0) {
-      // Display results in the console
-      console.log('Search Results:');
-      results.forEach((result) => {
-        console.log(`Company: ${result.company}, Ticker: ${result.ticker}, Price: $${result.price}`);
-      });
-      res.send('Search complete! Check the console for results.');
-    } else {
-      console.log('No results found for your search.');
-      res.send('No results found.');
+    if (!searched) {
+        return res.send("No search query provided.");
     }
-  } catch (err) {
-    console.error('Error during search:', err);
-    res.send('Error occurred during search.');
-  }
+
+    let searchSpecific;
+
+    // ticker versus company
+    if (searchType === 'ticker') {
+        searchSpecific = { ticker: searched };
+    } else if (searchType === 'company') {
+        searchSpecific = { company: { $regex: searched, $options: 'i' } };
+    }
+
+    try {
+        const results = await collection.find(searchSpecific).toArray();
+
+        if (results.length > 0) {
+            // search results
+            console.log('Search Results:');
+            results.forEach((result) => {
+                console.log(`Company: ${result.company}, Ticker: ${result.ticker}, Price: $${result.price}`);
+            });
+            
+            // end the results to console
+            res.send(`
+                <html>
+                    <head><title>Search Results</title></head>
+                    <body>
+                        <h1>Search Results</h1>
+                        <p>Check the console for your results!</p>
+                        <script>
+                            const searchResults = ${JSON.stringify(results)};
+                            searchResults.forEach(result => {
+                                console.log('Company:', result.company);
+                                console.log('Ticker:', result.ticker);
+                                console.log('Price: $' + result.price);
+                            });
+                        </script>
+                    </body>
+                </html>
+            `);
+        } else {
+            console.log('No results found.');
+            res.send('No results found.');
+        }
+    } catch (err) {
+        console.error('Error during search:', err);
+        res.send('Error occurred during search.');
+    }
 });
 
-// Start the server
+// local
 app.listen(port, () => {
   console.log(`Server is running at http://localhost:${port}`);
 });
