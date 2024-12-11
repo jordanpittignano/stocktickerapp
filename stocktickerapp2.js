@@ -16,7 +16,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 
 
-// connect to Mongo
+// onnect to MongoDB
 let db, collection;
 client.connect()
   .then(() => {
@@ -75,13 +75,7 @@ app.get('/process', async (req, res) => {
     try {
         const results = await collection.find(searchSpecific).toArray();
 
-        if (results.length > 0) {
-            // search results
-            console.log('Search Results:');
-            results.forEach((result) => {
-                console.log(`Company: ${result.company}, Ticker: ${result.ticker}, Price: $${result.price}`);
-            });
-            
+        if (results.length > 0) {  
             // end the results to console
             res.send(`
                 <html>
